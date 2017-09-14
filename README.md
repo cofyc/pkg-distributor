@@ -1,7 +1,10 @@
 # Package Distributor
 
+[![Docker Repository on Quay](https://quay.io/repository/cofyc/pkg-distributor/status "Docker Repository on Quay")](https://quay.io/repository/cofyc/pkg-distributor)
+
 ## Table of Contents
 
+* [Supported Package management Systems](#supported-package-management-systems)
 * [References](#references)
 
 ## Supported Package Management Systems
