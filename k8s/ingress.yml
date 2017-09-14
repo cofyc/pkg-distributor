@@ -4,6 +4,7 @@ metadata:
   name: pkg-distributor
   namespace: kube-system
   annotations:
+    ingress.kubernetes.io/proxy-body-size: "1024m"
     kubernetes.io/ingress.class: "nginx"
 spec:
   rules:
