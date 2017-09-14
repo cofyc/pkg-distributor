@@ -30,7 +30,7 @@ RUN set -e \
 	&& export GOPATH="/go" \
     && go version \
 	&& go build -o /usr/local/bin/pkg-distributor github.com/cofyc/pkg-distributor/cmd/pkg-distributor \
-	&& rm -rf /go
+	&& rm -rf /go && rm -rf /usr/local/go
 
 ADD entrypoint.sh /
 

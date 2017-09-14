@@ -11,4 +11,4 @@ docker run --name pkg-distributor --rm -it -p 1973:1973  \
     -e GPG_PRIVATE_KEY="$(cat test/testdata/testonly_private.key)" \
     -e APT_CONF_ORIGIN='Yecheng Fu' \
     -e APT_CONF_LABEL='yechengfu' \
-    pkg-distributor
+    pkg-distributor --dir=/data/repo --basic-auth user:pass
