@@ -1,0 +1,15 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: pkg-distributor
+  namespace: kube-system
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+  - host: repo.example.com
+    http:
+      paths:
+      - backend:
+          serviceName: pkg-distributor
+          servicePort: 1973

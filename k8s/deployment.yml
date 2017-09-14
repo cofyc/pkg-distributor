@@ -1,0 +1,60 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: pkg-distributor
+  labels:
+    app: pkg-distributor
+  namespace: kube-system
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: pkg-distributor
+    spec:
+      containers:
+      - name: pkg-distributor
+        image: quay.io/cofyc/pkg-distributor:v0.2
+        args:
+          - --dir=/data/repo
+          - --basic-auth=<user>:<password>
+        env:
+        - name: APT_CONF_ORIGIN
+          value: Your Origin
+        - name: APT_CONF_LABEL
+          value: your-origin
+        - name: GPG_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: pkg-distributor-keys
+              key: public.key
+        - name: GPG_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: pkg-distributor-keys
+              key: private.key
+        ports:
+        - containerPort: 1973
+          protocol: TCP
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: pkg-distributor
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pkg-distributor
+  namespace: kube-system
+spec:
+  type: ClusterIP
+  selector:
+    app: pkg-distributor
+  ports:
+  - name: http
+    port: 1973
+    protocol: TCP
+    targetPort: 1973
