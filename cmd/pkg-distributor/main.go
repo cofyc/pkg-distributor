@@ -46,7 +46,7 @@ func upload(w http.ResponseWriter, r *http.Request) {
 		glog.Errorf("error: %v", err)
 		return
 	}
-	for _, distro := range []string{"trusty", "xenial"} {
+	for _, distro := range []string{"xenial"} {
 		args := []string{"includedeb", distro, tmpfile}
 		cmd := exec.Command("reprepro", args...)
 		cmd.Dir = filepath.Join(optDir, "apt")
