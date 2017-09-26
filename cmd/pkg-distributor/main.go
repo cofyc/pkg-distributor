@@ -2,13 +2,12 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/cofyc/pkg-distributor/pkg/aptly"
 	"github.com/cofyc/pkg-distributor/pkg/utils"
 	"github.com/golang/glog"
 	"github.com/gorilla/handlers"
@@ -16,15 +15,26 @@ import (
 
 var (
 	optListen    string
-	optDir       string
 	optBasicAuth string
+	repo         string = "stable"
+	dataDir      string = "/data"
+	publicDir    string = "/data/public"
+	filesDir     string = "/data/files"
 )
 
 func init() {
 	flag.StringVar(&optListen, "listen", "0.0.0.0:1973", "host and port to listen on (default: 0.0.0.0:1973)")
-	flag.StringVar(&optDir, "dir", "", "repo directory")
 	flag.StringVar(&optBasicAuth, "basic-auth", "", "basic auth info (e.g. user:pass)")
 	flag.Set("logtostderr", "true")
+}
+
+func inArray(v string, ss []string) bool {
+	for _, s := range ss {
+		if s == v {
+			return true
+		}
+	}
+	return false
 }
 
 // upload handles "/v1/upload", it receives a file and add it into repo.
@@ -40,21 +50,51 @@ func upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	glog.Infof("header.Filename: %s, header.Header: %v, header.Size: %d", header.Filename, header.Header, header.Size)
-	tmpfile := fmt.Sprintf("/tmp/%s", header.Filename)
-	err = utils.Store(tmpfile, file)
+	tmpfile := filepath.Join(filesDir, header.Filename)
+	err = utils.Store(tmpfile, file, true)
 	if err != nil {
 		glog.Errorf("error: %v", err)
 		return
 	}
-	for _, distro := range []string{"xenial"} {
-		args := []string{"includedeb", distro, tmpfile}
-		cmd := exec.Command("reprepro", args...)
-		cmd.Dir = filepath.Join(optDir, "apt")
-		cmd.Stdout = w
-		cmd.Stderr = w
-		err = cmd.Run()
+	aptly := aptly.NewAptly()
+	// create repo if does not exist
+	repos, err := aptly.RepoList()
+	if err != nil {
+		glog.Errorf("failed to list repos: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !inArray(repo, repos) {
+		err = aptly.RepoCreate(repo)
 		if err != nil {
-			glog.Errorf("error: %v", err)
+			glog.Errorf("failed to create repo %s: %v", repo, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	// add deb into repo
+	err = aptly.RepoAdd(repo, tmpfile)
+	if err != nil {
+		glog.Errorf("failed to add %s into repo %s: %v", tmpfile, repo, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// publish
+	for _, distro := range []string{"xenial"} {
+		publishes, err := aptly.PublishList(distro)
+		if err != nil {
+			glog.Errorf("failed to list publishes %s: %v", distro, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if inArray(distro, publishes) {
+			err = aptly.PublishUpdate(distro)
+		} else {
+			err = aptly.PublishRepo(repo, distro)
+		}
+		if err != nil {
+			glog.Errorf("failed to publish repo %s: %v", repo, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -63,6 +103,12 @@ func upload(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
+
+	if os.Getenv("DATA_DIR") != "" {
+		dataDir = os.Getenv("DATA_DIR")
+		publicDir = filepath.Join(dataDir, "public")
+		filesDir = filepath.Join(dataDir, "files")
+	}
 
 	basicAuthPairs := make(map[string]string)
 	if optBasicAuth != "" {
@@ -80,7 +126,7 @@ func main() {
 		uploadHandler = utils.NewBasicAuthHandler("pkg-distributor", basicAuthPairs)(uploadHandler)
 	}
 	http.Handle("/v1/upload", uploadHandler)
-	http.Handle("/", http.FileServer(http.Dir(optDir)))
+	http.Handle("/", http.FileServer(http.Dir(publicDir)))
 	serveMux := handlers.LoggingHandler(os.Stderr, http.DefaultServeMux)
 	glog.Infof("listen on %s", optListen)
 	glog.Fatal(http.ListenAndServe(optListen, serveMux))

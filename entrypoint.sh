@@ -9,7 +9,9 @@ fi
 
 DATA_DIR=${DATA_DIR:-/data}
 
-mkdir -p ${DATA_DIR}/repo/apt/conf
+mkdir -p ${DATA_DIR}/aptly/public/conf
+mkdir -p ${DATA_DIR}/public
+mkdir -p ${DATA_DIR}/files
 
 # Import GPG key pair.
 if [ -z "$GPG_PUBLIC_KEY" ]; then
@@ -41,11 +43,11 @@ APT_CONF_VERSION=${APT_CONF_VERSION:-1.0}
 APT_CONF_COMPONENTS=${APT_CONF_COMPONENTS:-main}
 APT_CONF_DESCRIPTION=${APT_CONF_DESCRIPTION:-"APT default description, please set by 'APT_CONF_DESCRIPTION' environment."}
 
-# Generate distributions files.
-echo -n > ${DATA_DIR}/repo/apt/conf/distributions
+# Generate distributions file.
+echo -n > ${DATA_DIR}/aptly/public/conf/distributions
 for codename in $APT_CONF_CODENAMES; do
 
-    cat <<EOF >> ${DATA_DIR}/repo/apt/conf/distributions
+    cat <<EOF >> ${DATA_DIR}/aptly/public/conf/distributions
 Origin: $APT_CONF_ORIGIN
 Label: $APT_CONF_LABEL
 Codename: $codename
@@ -59,6 +61,29 @@ EOF
 
 done
 
-gpg --armor --export $GPG_KEY_ID > ${DATA_DIR}/repo/apt/conf/gpg.key
+gpg --armor --export $GPG_KEY_ID > ${DATA_DIR}/aptly/public/conf/gpg.key
+
+cat <<EOF >> /etc/aptly.conf
+{
+    "rootDir": "${DATA_DIR}/aptly",
+    "downloadConcurrency": 4,
+	"downloadSpeedLimit": 0,
+	"architectures": [],
+	"dependencyFollowSuggests": false,
+	"dependencyFollowRecommends": false,
+	"dependencyFollowAllVariants": false,
+	"dependencyFollowSource": false,
+	"gpgDisableSign": false,
+	"gpgDisableVerify": false,
+	"downloadSourcePackages": false,
+	"ppaDistributorID": "ubuntu",
+	"ppaCodename": "",
+	"S3PublishEndpoints": {},
+	"SwiftPublishEndpoints": {}
+}
+EOF
+
+test -d ${DATA_DIR} || mkdir ${DATA_DIR}/public
+ln -fs ${DATA_DIR}/aptly/public ${DATA_DIR}/public/apt
 
 exec "$@"

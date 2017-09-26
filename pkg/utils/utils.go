@@ -8,15 +8,17 @@ import (
 )
 
 // Store stores string read from `body` into file at `dstfile`.
-func Store(dstfile string, body io.ReadCloser) error {
+func Store(dstfile string, body io.ReadCloser, override bool) error {
 	dstfile = filepath.Clean(dstfile)
 	tmpfile := filepath.Join(filepath.Dir(dstfile), fmt.Sprintf(".%s.tmp", filepath.Base(dstfile)))
 	// Check file exists or not.
-	if _, err := os.Stat(tmpfile); !os.IsNotExist(err) {
-		return fmt.Errorf("%s does exist", tmpfile)
-	}
-	if _, err := os.Stat(dstfile); !os.IsNotExist(err) {
-		return fmt.Errorf("%s does exist", dstfile)
+	if !override {
+		if _, err := os.Stat(tmpfile); !os.IsNotExist(err) {
+			return fmt.Errorf("%s does exist", tmpfile)
+		}
+		if _, err := os.Stat(dstfile); !os.IsNotExist(err) {
+			return fmt.Errorf("%s does exist", dstfile)
+		}
 	}
 	// Open.
 	f, err := os.OpenFile(tmpfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)

@@ -16,3 +16,4 @@
 
 - https://wiki.debian.org/DebianRepository/SetupWithReprepro
 - https://debian-administration.org/article/286/Setting_up_your_own_APT_repository_with_upload_support
+- https://wiki.debian.org/DebianRepository/Setup?action=show&redirect=HowToSetupADebianRepository#aptly

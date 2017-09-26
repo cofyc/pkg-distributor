@@ -5,7 +5,7 @@ ENV GOLANG_VERSION 1.9
 RUN set -eux \
     && sed -i '/security.ubuntu.com/d' /etc/apt/sources.list \
     && apt-get update \
-    && apt-get install -y reprepro wget \
+    && apt-get install -y aptly wget \
     && \
 		dpkgArch="$(dpkg --print-architecture)"; \
 		case "${dpkgArch##*-}" in \
@@ -35,4 +35,4 @@ RUN set -e \
 ADD entrypoint.sh /
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/usr/local/bin/pkg-distributor", "--dir=/data/repo"]
+CMD ["/usr/local/bin/pkg-distributor"]
