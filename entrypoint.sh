@@ -86,4 +86,8 @@ EOF
 test -d ${DATA_DIR} || mkdir ${DATA_DIR}/public
 ln -fs ${DATA_DIR}/aptly/public ${DATA_DIR}/public/apt
 
+# Use sha256 as default digest algorithm.
+# See https://github.com/smira/aptly/pull/366.
+echo 'digest-algo sha256' > ~/.gnupg/gpg.conf
+
 exec "$@"

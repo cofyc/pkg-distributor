@@ -48,7 +48,7 @@ func (a *aptly) PublishUpdate(distribution string) (err error) {
 }
 
 func (a *aptly) PublishRepo(repo, distribution string) (err error) {
-	args := []string{"publish", "repo", "-distribution", distribution, repo}
+	args := []string{"publish", "repo", "-architectures", "amd64,i386", "-distribution", distribution, repo}
 	cmd := exec.Command("aptly", args...)
 	_, err = cmd.CombinedOutput()
 	return
