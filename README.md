@@ -1,5 +1,7 @@
 # Package Distributor
 
+[![Build
+Status](https://travis-ci.org/cofyc/pkg-distributor.svg?branch=master)](https://travis-ci.org/cofyc/pkg-distributor)
 [![Docker Repository on Quay](https://quay.io/repository/cofyc/pkg-distributor/status "Docker Repository on Quay")](https://quay.io/repository/cofyc/pkg-distributor)
 
 ## Table of Contents
