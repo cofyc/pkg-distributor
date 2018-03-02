@@ -2,12 +2,14 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/cofyc/pkg-distributor/pkg/aptly"
+	"github.com/cofyc/pkg-distributor/pkg/createrepo"
 	"github.com/cofyc/pkg-distributor/pkg/utils"
 	"github.com/golang/glog"
 	"github.com/gorilla/handlers"
@@ -20,6 +22,7 @@ var (
 	dataDir      string = "/data"
 	publicDir    string = "/data/public"
 	filesDir     string = "/data/files"
+	yumRepo      string = "/data/public/yum/repos/el7-x86_64"
 )
 
 func init() {
@@ -35,6 +38,76 @@ func inArray(v string, ss []string) bool {
 		}
 	}
 	return false
+}
+
+func uploadRpm(tmpfile string) (err error) {
+	cr := createrepo.NewCreateRepo()
+	dstfile := filepath.Join(yumRepo, filepath.Base(tmpfile))
+	f, err := os.Open(tmpfile)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	err = utils.Store(dstfile, f, true)
+	if err != nil {
+		return
+	}
+	err = cr.SignRPM(dstfile)
+	if err != nil {
+		return
+	}
+	err = cr.Update(yumRepo)
+	if err != nil {
+		return
+	}
+	err = cr.SignRepo(yumRepo)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func uploadDeb(tmpfile string) (err error) {
+	aptly := aptly.NewAptly()
+	// create repo if does not exist
+	repos, err := aptly.RepoList()
+	if err != nil {
+		glog.Errorf("failed to list repos: %v", err)
+		return
+	}
+	if !inArray(repo, repos) {
+		err = aptly.RepoCreate(repo)
+		if err != nil {
+			glog.Errorf("failed to create repo %s: %v", repo, err)
+			return
+		}
+	}
+	// add deb into repo
+	err = aptly.RepoAdd(repo, tmpfile)
+	if err != nil {
+		glog.Errorf("failed to add %s into repo %s: %v", tmpfile, repo, err)
+		return
+	}
+	// publish
+	// TODO Make ubuntu distribution configurable.
+	for _, distro := range []string{"xenial"} {
+		publishes, err2 := aptly.PublishList(distro)
+		if err2 != nil {
+			err = err2
+			glog.Errorf("failed to list publishes %s: %v", distro, err)
+			return
+		}
+		if inArray(distro, publishes) {
+			err = aptly.PublishUpdate(distro)
+		} else {
+			err = aptly.PublishRepo(repo, distro)
+		}
+		if err != nil {
+			glog.Errorf("failed to publish repo %s: %v", repo, err)
+			return
+		}
+	}
+	return
 }
 
 // upload handles "/v1/upload", it receives a file and add it into repo.
@@ -54,49 +127,22 @@ func upload(w http.ResponseWriter, r *http.Request) {
 	err = utils.Store(tmpfile, file, true)
 	if err != nil {
 		glog.Errorf("error: %v", err)
-		return
-	}
-	aptly := aptly.NewAptly()
-	// create repo if does not exist
-	repos, err := aptly.RepoList()
-	if err != nil {
-		glog.Errorf("failed to list repos: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if !inArray(repo, repos) {
-		err = aptly.RepoCreate(repo)
-		if err != nil {
-			glog.Errorf("failed to create repo %s: %v", repo, err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+	ext := filepath.Ext(tmpfile)
+	switch ext {
+	case ".deb":
+		err = uploadDeb(tmpfile)
+	case ".rpm":
+		err = uploadRpm(tmpfile)
+	default:
+		err = fmt.Errorf("unsupport file extension %s", ext)
 	}
-	// add deb into repo
-	err = aptly.RepoAdd(repo, tmpfile)
 	if err != nil {
-		glog.Errorf("failed to add %s into repo %s: %v", tmpfile, repo, err)
+		glog.Errorf("error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-	// publish
-	for _, distro := range []string{"xenial"} {
-		publishes, err := aptly.PublishList(distro)
-		if err != nil {
-			glog.Errorf("failed to list publishes %s: %v", distro, err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if inArray(distro, publishes) {
-			err = aptly.PublishUpdate(distro)
-		} else {
-			err = aptly.PublishRepo(repo, distro)
-		}
-		if err != nil {
-			glog.Errorf("failed to publish repo %s: %v", repo, err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 	}
 	return
 }
