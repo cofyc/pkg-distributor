@@ -1,0 +1,14 @@
+#!/usr/bin/expect -f
+# See http://aaronhawley.livejournal.com/10615.html.
+#
+# Usage:
+#
+#  rpmautosign <rpms>...
+#
+# TODO: using gpg-agent? https://unix.stackexchange.com/a/328818/206361
+#
+
+spawn rpm --addsign {*}$argv
+expect -exact "Enter pass phrase: "
+send -- "\n"
+expect eof

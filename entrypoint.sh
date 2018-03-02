@@ -86,6 +86,20 @@ EOF
 test -d ${DATA_DIR} || mkdir ${DATA_DIR}/public
 ln -fs ${DATA_DIR}/aptly/public ${DATA_DIR}/public/apt
 
+# setup yum
+mkdir -p ${DATA_DIR}/public/yum/repos/el7-x86_64
+mkdir -p ${DATA_DIR}/public/yum/doc
+gpg --armor --export $GPG_KEY_ID > ${DATA_DIR}/public/yum/doc/gpg.key
+
+## for rpm signing
+rpm --import ${DATA_DIR}/public/yum/doc/gpg.key
+cat <<EOF > /root/.rpmmacros
+%_signature gpg
+%_gpg_path /root/.gnupg
+%_gpg_name $GPG_KEY_ID
+%_gpgbin /usr/bin/gpg
+EOF
+
 # Use sha256 as default digest algorithm.
 # See https://github.com/smira/aptly/pull/366.
 echo 'digest-algo sha256' > ~/.gnupg/gpg.conf
