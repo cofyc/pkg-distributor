@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: pkg-distributor
-        image: quay.io/cofyc/pkg-distributor:v0.2
+        image: quay.io/cofyc/pkg-distributor:latest
         args:
           - --dir=/data/repo
           - --basic-auth=<user>:<password>
